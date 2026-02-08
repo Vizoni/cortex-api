@@ -37,11 +37,11 @@ export class AuthService {
       // 4. TODO: Gerar tokens JWT próprios
       // const { accessToken, refreshToken } = await this.jwtService.generateTokens(user);
 
-      // Por enquanto, retornamos os tokens do Google diretamente
+      // Por enquanto, retornamos os tokens do Google diretamente com expiração de 60 segundos
       return {
         accessToken: googleTokens.access_token,
         refreshToken: googleTokens.refresh_token || 'mock_refresh_token',
-        expiresIn: googleTokens.expires_in,
+        expiresIn: 60, // 60 segundos para testar expiração e refresh
         user: {
           id: googleUser.id,
           email: googleUser.email,
@@ -59,23 +59,49 @@ export class AuthService {
     }
   }
 
-  async refreshAccessToken(_refreshToken: string): Promise<AuthResponse> {
-    // TODO: Validar refresh token
-    // TODO: Verificar se não está revogado no banco
-    // TODO: Gerar novos tokens JWT
+  /**
+   * Renova o access token usando refresh token do Google
+   *
+   * @param refreshToken - Refresh token do Google
+   * @returns Nova resposta com tokens atualizados
+   */
+  async refreshAccessToken(refreshToken: string): Promise<AuthResponse> {
+    try {
+      // 1. Renova o access token via Google OAuth (via integration layer)
+      const googleTokens =
+        await this.googleOAuthIntegration.refreshAccessToken(refreshToken);
 
-    // Mock response para estrutura inicial
-    return Promise.resolve({
-      accessToken: 'new_mock_access_token',
-      refreshToken: 'new_mock_refresh_token',
-      expiresIn: 3600,
-      user: {
-        id: 'user_id',
-        email: 'user@example.com',
-        name: 'User Name',
-        picture: 'https://example.com/picture.jpg',
-      },
-    });
+      // 2. Busca informações do usuário com o novo token
+      const googleUser = await this.googleOAuthIntegration.getUserInfo(
+        googleTokens.access_token,
+      );
+
+      // 3. TODO: Buscar usuário do banco de dados
+      // const user = await this.userRepository.findById(googleUser.id);
+
+      // 4. TODO: Gerar novos tokens JWT próprios
+      // const { accessToken, refreshToken } = await this.jwtService.generateTokens(user);
+
+      // Por enquanto, retorna os tokens do Google com expiração de 60 segundos
+      return {
+        accessToken: googleTokens.access_token,
+        refreshToken: googleTokens.refresh_token || refreshToken, // Google mantém o mesmo refresh token
+        expiresIn: 60, // 60 segundos para testar expiração
+        user: {
+          id: googleUser.id,
+          email: googleUser.email,
+          name: googleUser.name,
+          picture: googleUser.picture,
+        },
+      };
+    } catch (error) {
+      console.error('[AuthService] Erro ao renovar token:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
+      throw new UnauthorizedException(
+        `Falha ao renovar token: ${errorMessage}`,
+      );
+    }
   }
 
   async validateToken(_token: string): Promise<any> {
@@ -86,8 +112,21 @@ export class AuthService {
     return Promise.resolve(null);
   }
 
-  async revokeRefreshToken(_refreshToken: string): Promise<void> {
-    // TODO: Marcar token como revogado no banco de dados
-    return Promise.resolve();
+  /**
+   * Revoga um refresh token (logout)
+   *
+   * @param refreshToken - Token a ser revogado
+   */
+  async revokeRefreshToken(refreshToken: string): Promise<void> {
+    try {
+      // Revoga o token no Google (via integration layer)
+      await this.googleOAuthIntegration.revokeToken(refreshToken);
+
+      // TODO: Marcar token como revogado no banco de dados
+      // await this.tokenRepository.revoke(refreshToken);
+    } catch (error) {
+      console.error('[AuthService] Erro ao revogar token:', error);
+      // Não lança erro para não bloquear logout
+    }
   }
 }
