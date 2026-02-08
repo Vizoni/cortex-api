@@ -1,52 +1,64 @@
-import { Injectable } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthResponse } from './dto/auth-response.dto.js';
+import { GoogleOAuthIntegration } from './integrations/google-oauth.integration.js';
 
+/**
+ * Serviço de autenticação
+ * Orquestra a lógica de negócio de autenticação
+ * Não faz chamadas diretas a APIs externas ou banco de dados
+ */
 @Injectable()
 export class AuthService {
+  constructor(
+    private readonly googleOAuthIntegration: GoogleOAuthIntegration,
+  ) {}
+
   /**
    * Processa o login via Google OAuth2
-   *
-   * Fluxo futuro:
-   * 1. Validar o código de autorização do Google
-   * 2. Obter informações do usuário do Google
-   * 3. Chamar camada de integração para verificar/criar usuário no PostgreSQL
-   * 4. Gerar tokens JWT (access + refresh)
    *
    * @param code - Código de autorização do Google
    * @returns Resposta com tokens e dados do usuário
    */
-  async loginWithGoogle(_code: string): Promise<AuthResponse> {
-    // TODO: Implementar validação do código com Google OAuth2
-    // TODO: Obter dados do usuário do Google (email, name, picture)
-    // TODO: Chamar service de integração para persistir/buscar usuário no banco
-    // TODO: Gerar JWT tokens
+  async loginWithGoogle(code: string): Promise<AuthResponse> {
+    try {
+      // 1. Trocar o código por tokens do Google (via integration layer)
+      const googleTokens =
+        await this.googleOAuthIntegration.exchangeCodeForTokens(code);
 
-    // Mock response para estrutura inicial
-    return Promise.resolve({
-      accessToken: 'mock_access_token',
-      refreshToken: 'mock_refresh_token',
-      expiresIn: 3600,
-      user: {
-        id: 'user_id',
-        email: 'user@example.com',
-        name: 'User Name',
-        picture: 'https://example.com/picture.jpg',
-      },
-    });
+      // 2. Obter informações do usuário do Google (via integration layer)
+      const googleUser = await this.googleOAuthIntegration.getUserInfo(
+        googleTokens.access_token,
+      );
+
+      // 3. TODO: Verificar/criar usuário no banco de dados
+      // const user = await this.userRepository.findOrCreate(googleUser);
+
+      // 4. TODO: Gerar tokens JWT próprios
+      // const { accessToken, refreshToken } = await this.jwtService.generateTokens(user);
+
+      // Por enquanto, retornamos os tokens do Google diretamente
+      return {
+        accessToken: googleTokens.access_token,
+        refreshToken: googleTokens.refresh_token || 'mock_refresh_token',
+        expiresIn: googleTokens.expires_in,
+        user: {
+          id: googleUser.id,
+          email: googleUser.email,
+          name: googleUser.name,
+          picture: googleUser.picture,
+        },
+      };
+    } catch (error) {
+      console.error('[AuthService] Erro no login com Google:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
+      throw new UnauthorizedException(
+        `Falha ao autenticar com Google: ${errorMessage}`,
+      );
+    }
   }
 
-  /**
-   * Renova o access token usando o refresh token
-   *
-   * Fluxo futuro:
-   * 1. Validar o refresh token
-   * 2. Verificar se o token não está revogado (consultar banco)
-   * 3. Gerar novo access token
-   * 4. Opcionalmente, gerar novo refresh token (refresh token rotation)
-   *
-   * @param refreshToken - Token de refresh válido
-   * @returns Nova resposta com tokens atualizados
-   */
   async refreshAccessToken(_refreshToken: string): Promise<AuthResponse> {
     // TODO: Validar refresh token
     // TODO: Verificar se não está revogado no banco
@@ -66,13 +78,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * Valida e decodifica um access token
-   * Será usado por guards/middleware para proteger rotas
-   *
-   * @param token - Access token JWT
-   * @returns Dados do usuário decodificados
-   */
   async validateToken(_token: string): Promise<any> {
     // TODO: Validar JWT token
     // TODO: Verificar se o usuário ainda existe no banco
@@ -81,11 +86,6 @@ export class AuthService {
     return Promise.resolve(null);
   }
 
-  /**
-   * Revoga um refresh token (logout)
-   *
-   * @param refreshToken - Token a ser revogado
-   */
   async revokeRefreshToken(_refreshToken: string): Promise<void> {
     // TODO: Marcar token como revogado no banco de dados
     return Promise.resolve();
