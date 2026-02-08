@@ -34,13 +34,6 @@ export class GoogleOAuthIntegration {
     const clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET');
     const redirectUri = this.configService.get<string>('GOOGLE_REDIRECT_URI');
 
-    // Log para debug (remover em produção)
-    console.log('[GoogleOAuthIntegration] Configurações:', {
-      clientId: clientId ? `${clientId.substring(0, 20)}...` : 'undefined',
-      clientSecret: clientSecret ? 'SET' : 'undefined',
-      redirectUri: redirectUri || 'undefined',
-    });
-
     if (!clientId || !clientSecret || !redirectUri) {
       throw new Error('Configurações do Google OAuth não encontradas');
     }
@@ -67,13 +60,6 @@ export class GoogleOAuthIntegration {
 
       return response.data;
     } catch (error) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: unknown } };
-        console.error(
-          '[GoogleOAuthIntegration] Erro ao trocar código por tokens:',
-          axiosError.response?.data,
-        );
-      }
       throw new Error('Falha ao obter tokens do Google');
     }
   }
@@ -97,13 +83,6 @@ export class GoogleOAuthIntegration {
 
       return response.data;
     } catch (error) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: unknown } };
-        console.error(
-          '[GoogleOAuthIntegration] Erro ao obter info do usuário:',
-          axiosError.response?.data,
-        );
-      }
       throw new Error('Falha ao obter informações do usuário');
     }
   }
@@ -144,13 +123,6 @@ export class GoogleOAuthIntegration {
 
       return response.data;
     } catch (error) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: unknown } };
-        console.error(
-          '[GoogleOAuthIntegration] Erro ao renovar token:',
-          axiosError.response?.data,
-        );
-      }
       throw new Error('Falha ao renovar token do Google');
     }
   }
@@ -176,13 +148,6 @@ export class GoogleOAuthIntegration {
         }),
       );
     } catch (error) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: unknown } };
-        console.error(
-          '[GoogleOAuthIntegration] Erro ao revogar token:',
-          axiosError.response?.data,
-        );
-      }
       throw new Error('Falha ao revogar token do Google');
     }
   }

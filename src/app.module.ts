@@ -8,8 +8,8 @@ import { HealthController } from './health/health.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // Disponibiliza as variáveis de ambiente globalmente
-      envFilePath: '.env',
+      isGlobal: true,
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),
     AuthModule,
   ],
