@@ -9,6 +9,9 @@ fi
 
 echo "✅ DATABASE_URL encontrada"
 
+echo "🏗️  Compilando aplicação..."
+pnpm run build
+
 echo "📦 Gerando Prisma Client..."
 pnpm prisma generate
 
