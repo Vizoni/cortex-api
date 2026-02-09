@@ -2,6 +2,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthResponse } from './dto/auth-response.dto.js';
 import { GoogleOAuthIntegration } from './integrations/google-oauth.integration.js';
+import { UsersService } from '../users/users.service.js';
 
 /**
  * Serviço de autenticação
@@ -12,6 +13,7 @@ import { GoogleOAuthIntegration } from './integrations/google-oauth.integration.
 export class AuthService {
   constructor(
     private readonly googleOAuthIntegration: GoogleOAuthIntegration,
+    private readonly usersService: UsersService,
   ) {}
 
   /**
@@ -31,8 +33,16 @@ export class AuthService {
         googleTokens.access_token,
       );
 
+      console.info('\n\n');
+      console.info('ja pegou google user', googleUser);
+      console.info('\n\n');
+
       // 3. TODO: Verificar/criar usuário no banco de dados
-      // const user = await this.userRepository.findOrCreate(googleUser);
+      const user = await this.usersService.findOrCreate({
+        ...googleUser,
+        provider: 'google',
+        providerId: googleUser.id,
+      });
 
       // 4. TODO: Gerar tokens JWT próprios
       // const { accessToken, refreshToken } = await this.jwtService.generateTokens(user);
@@ -43,10 +53,10 @@ export class AuthService {
         refreshToken: googleTokens.refresh_token || 'mock_refresh_token',
         expiresIn: 60, // 60 segundos para testar expiração e refresh
         user: {
-          id: googleUser.id,
-          email: googleUser.email,
-          name: googleUser.name,
-          picture: googleUser.picture,
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture ?? undefined,
         },
       };
     } catch (error) {
@@ -77,7 +87,7 @@ export class AuthService {
       );
 
       // 3. TODO: Buscar usuário do banco de dados
-      // const user = await this.userRepository.findById(googleUser.id);
+      // const user = await this.usersService.findById(googleUser.id);
 
       // 4. TODO: Gerar novos tokens JWT próprios
       // const { accessToken, refreshToken } = await this.jwtService.generateTokens(user);
@@ -91,7 +101,7 @@ export class AuthService {
           id: googleUser.id,
           email: googleUser.email,
           name: googleUser.name,
-          picture: googleUser.picture,
+          picture: googleUser.picture ?? undefined,
         },
       };
     } catch (error) {
